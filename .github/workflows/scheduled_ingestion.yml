@@ -1,0 +1,37 @@
+name: Scheduled Ingestion of Buienradar Data
+
+"on":
+    workflow_dispatch:
+        # Just to illustrate what it could look like to trigger the workflow manually with a specific timestamp
+        # inputs:
+        #     timestamp:
+        #         description: "Timestamp for which the data should be loaded. If not provided,
+        #             the current timestamp will be used."
+        #         required: false
+        #         default: ""
+        #     backfill:
+        #         description: "Whether to backfill data, meaning in this case if overwriting is
+        #             allowed. Only used in combination with a provided
+        #             timestamp."
+        #         required: false
+        #         default: "false"
+    schedule:
+        - cron: "0,20,40 * * * *" # Runs every 20 minutes
+
+jobs:
+    load_buienradar_data:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Install uv dependency manager
+              run: |
+                  curl -LsSf https://astral.sh/uv/install.sh | sh
+                  source $HOME/.local/bin/uv
+
+            - name: Checkout repository
+              uses: actions/checkout@v3
+              with:
+                  fetch-depth: 1
+
+            - name: Run load_buienradar_data script
+              run: |
+                  ./load_buienradar_data
