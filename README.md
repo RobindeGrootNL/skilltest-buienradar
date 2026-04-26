@@ -23,6 +23,20 @@ Zypp Skill Test: Dutch Weather Analysis
 
 [![Open Source](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)](https://opensource.org/)
 
+# 0. How to run my solution
+
+## Part 1
+
+The `load_buienradar_data` script can be run directly from the command line using `./load_buienradar_data` (I already ran `chmod +x load_buienradar_data`). It will load the most recent data available at the moment of running. It relies quite heavily on [uv](https://astral.sh/uv/) to manage dependencies and virtual environments, which makes it very easy to run without having to worry about setting up the environment first. See `erd.md` for the ERD made in mermaid of the database created by this script.
+
+## Part 2
+
+The Jupyter notebook `data_analysis.ipynb` contains the code for answering the questions in part 2. It is a quick rewrite of the code in `analyse_buienradar_data`, which can be ran in the same way as `load_buienradar_data`, but a notebook allows for nicer formatting and visualization of the data.
+
+## Part 3
+
+See the file `automation_description_Q9.md` for the description of how I would automate the data loading process.
+
 # Table of Contents
 
 1. [Introduction Skilltest](#introduction)
@@ -53,6 +67,7 @@ You may have arrived here as you're heading into the second part of our recruitm
 This skill test serves as a starting point for you to demonstrate your coding skills, but as well for us to show what kind of projects you will encounter during your career at Zypp.
 
 ## Our expectations
+
 This project is not designed to be a pass or fail test. There are multiple ways to solve the questions, we want to see
 how you solve them. Based on your answers, we will:
 
@@ -62,6 +77,7 @@ how you solve them. Based on your answers, we will:
 # The test: Dutch Weather Analysis
 
 ## Case introduction
+
 The Buienradar API provides data from all weather stations in the Netherlands,updated 3 times an hour. You can query the data via the endpoints [json](https://json.buienradar.nl) or [xml](https://xml.buienradar.nl), and it will return the current weather data for each station.
 The goal is to answer some data analysis questions, but we need data for a full day from buienradar. In order to answer the questions, the candidate needs to be able to:
 
@@ -73,7 +89,7 @@ The test is decomposed into 3 parts.
 
 > Note: make sure the code is reproducible for us
 
-## Instructions:
+## Instructions
 
 1. This repository contains a set of Python coding tasks related to data integration, data analysis, and automation.
 2. Fork this repository to your GitHub account to get started with the test.
@@ -82,7 +98,7 @@ The test is decomposed into 3 parts.
 5. In the test you will create a database, please be sure to also commit the database to the repository.
 6. Send the link to your forked repository to <hello@zypp.io>
 
-## Guidelines:
+## Guidelines
 
 - You are encouraged to use Python 3.10 and any relevant libraries or frameworks for the tasks.
 - Each section starts with a time estimation. This is not a hard requirement, but meant to give you clarity in how much time a topic should take.
@@ -135,7 +151,8 @@ Create an ERD  of the SQL database you created. Tip: you can use [draw.io](https
 ---
 
 ## Part 2: Data Analysis
-This section is about performing data analysis on your gathered data. 
+
+This section is about performing data analysis on your gathered data.
 
 **Time Estimation:** 1 hour  
 In this part you are required to answer questions based on data collected in step 1.
@@ -169,6 +186,6 @@ Feel free to use a flowchat to show the steps of your approach.
 
 **Question 9B: Data Visualization**
 
-Visualize your analysis of part 2. You can choose between a data visualization tool which you are familiar with and you see fit. It can also be a visualization library in Python or JavaScripts for example. 
+Visualize your analysis of part 2. You can choose between a data visualization tool which you are familiar with and you see fit. It can also be a visualization library in Python or JavaScripts for example.
 
 Bonuspoints if you manage to do both!
