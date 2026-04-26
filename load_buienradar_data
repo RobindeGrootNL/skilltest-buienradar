@@ -110,12 +110,15 @@ def add_measurementid_column_to_df(df: pd.DataFrame, type: str = "hash"):
 
 
 def get_buienradar_measurements(
+    base_url: str,
     return_type: str = "json",
 ):
-    try:
-        url = f"https://data.buienradar.nl/2.0/feed/{return_type}"
-    except ValueError:
-        raise ValueError("Invalid return type. Supported types are 'json' and 'xml'.")
+    if return_type not in ("json", "xml"):
+        raise ValueError(
+            "Invalid return type. API supported types are 'json' and 'xml'."
+        )
+
+    url = f"{base_url}{return_type}"
 
     response = requests.get(url)
     response.raise_for_status()
@@ -136,7 +139,9 @@ if __name__ == "__main__":
     # Initialise the database and create the necessary tables, if does not exist yet
     init_db(DB_NAME, TABLE_NAME_MEASUREMENTS, TABLE_NAME_STATIONS)
 
-    buienradar_measurements = get_buienradar_measurements(return_type="json")
+    buienradar_measurements = get_buienradar_measurements(
+        base_url=URL_BASE_BUIENRADAR_API, return_type="json"
+    )
 
     df_measurements = pd.DataFrame(buienradar_measurements["stationmeasurements"])[
         COLUMNS_MEASUREMENTS[
