@@ -27,11 +27,17 @@ Zypp Skill Test: Dutch Weather Analysis
 
 ## Part 1
 
-The `load_buienradar_data` script can be run directly from the command line using `./load_buienradar_data` (I already ran `chmod +x load_buienradar_data`). It will load the most recent data available at the moment of running. It relies quite heavily on [uv](https://astral.sh/uv/) to manage dependencies and virtual environments, which makes it very easy to run without having to worry about setting up the environment first. See `erd.md` for the ERD made in mermaid of the database created by this script.
+The `load_buienradar_data` script can be run directly from the command line using `./load_buienradar_data` (I
+already ran `chmod +x load_buienradar_data`). It will load the most recent data available at the moment of running. It
+relies quite heavily on [uv](https://astral.sh/uv/) to manage dependencies and virtual environments, which makes it
+very easy to run without having to worry about setting up the environment first. See `erd.md` for the ERD made in
+mermaid of the database created by this script.
 
 ## Part 2
 
-The Jupyter notebook `data_analysis.ipynb` contains the code for answering the questions in part 2. It is a quick rewrite of the code in `analyse_buienradar_data`, which can be ran in the same way as `load_buienradar_data`, but a notebook allows for nicer formatting and visualization of the data.
+The Jupyter notebook `data_analysis.ipynb` contains the code for answering the questions in part 2. It is a quick
+rewrite of the code in `analyse_buienradar_data`, which can be ran in the same way as `load_buienradar_data`, but a
+notebook allows for nicer formatting and visualization of the data.
 
 ## Part 3
 
