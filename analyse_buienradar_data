@@ -4,7 +4,6 @@
 # /// script
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
-#   "pandas",
 # ]
 # ///
 
@@ -37,9 +36,11 @@ if __name__ == "__main__":
     """
     result_5 = query_db(DB_NAME, query_5)
 
-    print("The station(s) that recorded the highest temperature:")
+    print("=" * 60)
+    print("Q5: Which weather station recorded the highest temperature?")
+    print("-" * 60)
     for station, temp in result_5:
-        print(f"{station} | {temp} °C")
+        print(f"  {station} | {temp} °C")
 
     # Question 6: What is the average temperature?
     query_6 = """
@@ -49,11 +50,36 @@ if __name__ == "__main__":
 
     result_6 = query_db(DB_NAME, query_6)
     avg_temperature = result_6[0][0]
-    print(
-        f"The average temperature across all stations and timestamps is: {avg_temperature:.2f} °C"
-    )
+
+    print()
+    print("=" * 60)
+    print("Q6: What is the average temperature?")
+    print("-" * 60)
+    print(f"  {avg_temperature:.2f} °C (across all stations and timestamps)")
+
+    # Question 6b: What is the average temperature per station?
+    query_6b = """
+        with avg_temp_per_station AS (
+            SELECT stationid, AVG(temperature) AS avg_temperature
+            FROM MEASUREMENTS
+            GROUP BY stationid
+        )
+        SELECT s.stationname, atps.avg_temperature
+        FROM avg_temp_per_station atps
+        JOIN STATIONS s ON s.stationid = atps.stationid
+        ORDER BY atps.avg_temperature DESC
+    """
+
+    result_6b = query_db(DB_NAME, query_6b)
+
+    print()
+    print("  Per station:")
+    for station, avg_temp in result_6b:
+        if avg_temp is not None:
+            print(f"    {station:<30} {avg_temp:.2f} °C")
 
     # Question 7: What is the station with the biggest difference between feel temperature and the actual temperature?
+    # This query already supports having multiple measurements per station.
     query_7 = """
         SELECT s.stationname, MAX(ABS(feeltemperature - temperature)) AS max_diff
         FROM MEASUREMENTS m
@@ -65,11 +91,13 @@ if __name__ == "__main__":
 
     result_7 = query_db(DB_NAME, query_7)
 
-    print(
-        "The station with the biggest difference between feel temperature and actual temperature is:"
-    )
+    print()
+    print("=" * 60)
+    print("Q7: Biggest difference between feel and actual temperature?")
+    print("-" * 60)
     for station, diff in result_7:
-        print(f"{station} | Δ {diff:.2f} °C")
+        if diff is not None:
+            print(f"  {station} | Δ {diff:.2f} °C")
 
     # Question 8: Which weather station is located in the North Sea?
     query_8 = """
@@ -80,5 +108,10 @@ if __name__ == "__main__":
 
     result_8 = query_db(DB_NAME, query_8)
 
-    print("The weather station(s) located in the North Sea:")
-    print(f"{result_8[0][0]}")
+    print()
+    print("=" * 60)
+    print("Q8: Which weather station is located in the North Sea?")
+    print("-" * 60)
+    for (station,) in result_8:
+        print(f"  {station}")
+    print("=" * 60)
