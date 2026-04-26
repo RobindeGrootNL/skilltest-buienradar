@@ -78,7 +78,8 @@ if __name__ == "__main__":
         if avg_temp is not None:
             print(f"    {station:<30} {avg_temp:.2f} °C")
 
-    # Question 7: What is the station with the biggest difference between feel temperature and the actual temperature?
+    # Question 7: What is the station with the biggest
+    # difference between feel and actual temperature?
     # This query already supports having multiple measurements per station.
     query_7 = """
         SELECT s.stationname, MAX(ABS(feeltemperature - temperature)) AS max_diff

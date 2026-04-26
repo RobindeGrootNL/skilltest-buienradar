@@ -18,8 +18,10 @@ import requests
 
 DB_NAME = "buienradar.db"
 
-# measurementid is generated based on stationid and timestamp, so before that column is created, we use
-# COLUMNS_MEASUREMENTS[1:] to exclude the "measurementid" column
+# measurementid is generated based on stationid and
+# timestamp, so before that column is created, we use
+# COLUMNS_MEASUREMENTS[1:] to exclude the
+# "measurementid" column
 COLUMNS_MEASUREMENTS = [
     "measurementid",
     "timestamp",
@@ -44,8 +46,10 @@ URL_BASE_BUIENRADAR_API = "https://data.buienradar.nl/2.0/feed/"
 
 
 def init_db(db_name: str, table_name_measurements: str, table_name_stations: str):
-    """Initialise the SQLite database and create the necessary tables if they do not exist yet.
-    Idempotent operation, so if the tables already exist, will be a no-op.
+    """Initialise the SQLite database and create the
+    necessary tables if they do not exist yet.
+    Idempotent operation, so if the tables already exist,
+    will be a no-op.
 
     Args:
         db_name (str): The name of the SQLite database file.
@@ -85,15 +89,22 @@ def init_db(db_name: str, table_name_measurements: str, table_name_stations: str
             """
         )
 
-        # Most questions will be about measurements on a per-station level, so an index on stationid will help with query performance (though the table is small)
+        # Most questions will be about measurements on a
+        # per-station level, so an index on stationid will
+        # help with query performance
+        # (though the table is small)
         cursor.execute(
-            f"CREATE INDEX IF NOT EXISTS idx_measurements_stationid ON {table_name_measurements}(stationid)"
+            f"CREATE INDEX IF NOT EXISTS "
+            f"idx_measurements_stationid "
+            f"ON {table_name_measurements}(stationid)"
         )
 
 
 def add_measurementid_column_to_df(df: pd.DataFrame, id_type: str = "hash"):
-    """Add a measurementid column to the dataframe based on the stationid and timestamp of each row.
-    This will be used as the primary key for the measurements table in the database.
+    """Add a measurementid column to the dataframe based
+    on the stationid and timestamp of each row.
+    This will be used as the primary key for the
+    measurements table in the database.
 
     Args:
         df (pd.DataFrame): The dataframe containing the measurements data.
@@ -106,10 +117,15 @@ def add_measurementid_column_to_df(df: pd.DataFrame, id_type: str = "hash"):
         pd.DataFrame: The dataframe with the added measurementid column.
     """
     if id_type == "hash":
-        # Create a hash based on the stationid and timestamp of each row to generate a unique measurementid
-        # Benefit of using a hash is that it will always generate the same measurementid for the same stationid and timestamp
-        # and the join and index performance will be better compared to using a composite key of stationid and timestamp
-        # Rest of the script assumes this to be an integer, the other types are just for illustration purposes
+        # Create a hash based on the stationid and timestamp
+        # of each row to generate a unique measurementid
+        # Benefit of using a hash is that it will always
+        # generate the same measurementid for the same
+        # stationid and timestamp and the join and index
+        # performance will be better compared to using a
+        # composite key of stationid and timestamp
+        # Rest of the script assumes this to be an integer,
+        # the other types are just for illustration purposes
         df["measurementid"] = df.apply(
             lambda row: int(
                 hashlib.md5(
@@ -176,7 +192,9 @@ def upsert_df(
 
 
 def _test_database_load():
-    """Test function to check if the data has been loaded into the database correctly by querying the counts of the tables."""
+    """Test function to check if the data has been loaded
+    into the database correctly by querying the counts
+    of the tables."""
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
         cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME_MEASUREMENTS}")
@@ -190,7 +208,8 @@ def _test_database_load():
 
 # Just for testing purposes
 def _clear_db():
-    """Utility function to clear the data from the database tables. Useful for testing purposes."""
+    """Utility function to clear the data from the database
+    tables. Useful for testing purposes."""
     with sqlite3.connect(DB_NAME) as conn:
         cursor = conn.cursor()
         cursor.execute(f"DROP TABLE {TABLE_NAME_MEASUREMENTS}")
@@ -199,7 +218,9 @@ def _clear_db():
 
 if __name__ == "__main__":
 
-    # _clear_db()  # Clear the database before loading new data, for testing purposes. In production, this would not be used to avoid data loss.
+    # _clear_db()  # Clear the database before loading
+    # new data, for testing purposes. In production, this
+    # would not be used to avoid data loss.
 
     # Initialise the database and create the necessary tables, if does not exist yet
     init_db(DB_NAME, TABLE_NAME_MEASUREMENTS, TABLE_NAME_STATIONS)
@@ -211,7 +232,8 @@ if __name__ == "__main__":
     df_measurements = pd.DataFrame(buienradar_measurements["stationmeasurements"])[
         COLUMNS_MEASUREMENTS[
             1:
-        ]  # Exclude measurementid column as it will be generated later based on stationid and timestamp
+        ]  # Exclude measurementid column as it will be
+        # generated later based on stationid and timestamp
     ]
     df_measurements = add_measurementid_column_to_df(df_measurements, id_type="hash")
 
@@ -220,8 +242,11 @@ if __name__ == "__main__":
     ]
 
     with sqlite3.connect(DB_NAME) as conn:
-        # Insert stations first to ensure that the foreign key constraint on stationid in measurements table is not violated
-        # Using context manager to ensure that the connection is properly closed after the operations
+        # Insert stations first to ensure that the foreign
+        # key constraint on stationid in measurements table
+        # is not violated
+        # Using context manager to ensure that the connection
+        # is properly closed after the operations
         upsert_df(
             conn,
             TABLE_NAME_STATIONS,
