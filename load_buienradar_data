@@ -1,0 +1,174 @@
+#!/usr/bin/env -S uv run --no-progress --script --python 3.10
+# -*- mode: python -*-
+
+# /// script
+# requires-python = ">=3.10,<3.11"
+# dependencies = [
+#   "requests",
+#   "pandas",
+# ]
+# ///
+
+import hashlib
+import sqlite3
+import uuid
+
+import pandas as pd
+import requests
+
+DB_NAME = "buienradar.db"
+COLUMNS_MEASUREMENTS = [
+    "measurementid",
+    "timestamp",
+    "temperature",
+    "groundtemperature",
+    "feeltemperature",
+    "windgusts",
+    "windspeedBft",
+    "humidity",
+    "precipitation",
+    "sunpower",
+    "stationid",
+]
+COLUMNS_STATIONS = ["stationid", "stationname", "lat", "lon", "regio"]
+TABLE_NAME_MEASUREMENTS = "MEASUREMENTS"
+TABLE_NAME_STATIONS = "STATIONS"
+
+URL_BASE_BUIENRADAR_API = "https://data.buienradar.nl/2.0/feed/"
+
+
+def init_db(db_name: str, table_name_measurements: str, table_name_stations: str):
+    with sqlite3.connect(db_name) as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {table_name_stations} (
+                stationid INTEGER PRIMARY KEY,
+                stationname TEXT,
+                lat REAL,
+                lon REAL,
+                regio TEXT
+            )
+            """
+        )
+
+        cursor.execute(
+            f"""
+            CREATE TABLE IF NOT EXISTS {table_name_measurements} (
+                measurementid INTEGER PRIMARY KEY,
+                timestamp TEXT,
+                temperature REAL,
+                groundtemperature REAL,
+                feeltemperature REAL,
+                windgusts REAL,
+                windspeedBft REAL,
+                humidity REAL,
+                precipitation REAL,
+                sunpower REAL,
+                stationid INTEGER REFERENCES {table_name_stations}(stationid)
+            )
+            """
+        )
+
+        # Most questions will be about measurements on a per-station level, so an index on stationid will help with query performance (though the table is small)
+        cursor.execute(
+            f"CREATE INDEX IF NOT EXISTS idx_measurements_stationid ON {table_name_measurements}(stationid)"
+        )
+
+
+def add_measurementid_column_to_df(df: pd.DataFrame, type: str = "hash"):
+    if type == "hash":
+        # Create a hash based on the stationid and timestamp of each row to generate a unique measurementid
+        # Benefit of using a hash is that it will always generate the same measurementid for the same stationid and timestamp
+        # and the join and index performance will be better compared to using a composite key of stationid and timestamp
+        # Rest of the script assumes this to be an integer, the other types are just for illustration purposes
+        df["measurementid"] = df.apply(
+            lambda row: int(
+                hashlib.md5(
+                    f"{row['stationid']}_{row['timestamp']}".encode()
+                ).hexdigest()[:15],
+                16,
+            ),
+            axis=1,
+        )
+    elif type == "composite":
+        df["measurementid"] = df.apply(
+            lambda row: f"{row['stationid']}_{row['timestamp']}", axis=1
+        )
+    elif type == "uuid":
+        df["measurementid"] = df.apply(lambda row: uuid.uuid4(), axis=1)
+    else:
+        raise ValueError(
+            "Invalid type. Supported types are 'hash', 'composite', and 'uuid'."
+        )
+
+    df = df[["measurementid"] + [col for col in df.columns if col != "measurementid"]]
+    return df
+
+
+def get_buienradar_measurements(
+    return_type: str = "json",
+):
+    try:
+        url = f"https://data.buienradar.nl/2.0/feed/{return_type}"
+    except ValueError:
+        raise ValueError("Invalid return type. Supported types are 'json' and 'xml'.")
+
+    response = requests.get(url)
+    response.raise_for_status()
+
+    return response.json()["actual"]
+
+
+def upsert_df(conn, table, columns, df):
+    cols = ", ".join(columns)
+    placeholders = ", ".join("?" * len(columns))
+    conn.executemany(
+        f"INSERT OR IGNORE INTO {table} ({cols}) VALUES ({placeholders})",
+        df[columns].values.tolist(),
+    )
+
+
+if __name__ == "__main__":
+    # Initialise the database and create the necessary tables, if does not exist yet
+    init_db(DB_NAME, TABLE_NAME_MEASUREMENTS, TABLE_NAME_STATIONS)
+
+    buienradar_measurements = get_buienradar_measurements(return_type="json")
+
+    df_measurements = pd.DataFrame(buienradar_measurements["stationmeasurements"])[
+        COLUMNS_MEASUREMENTS[
+            1:
+        ]  # Exclude measurementid column as it will be generated later based on stationid and timestamp
+    ]
+    df_measurements = add_measurementid_column_to_df(df_measurements, type="hash")
+
+    df_stations = pd.DataFrame(buienradar_measurements["stationmeasurements"])[
+        COLUMNS_STATIONS
+    ]
+
+    with sqlite3.connect(DB_NAME) as conn:
+        upsert_df(
+            conn,
+            TABLE_NAME_MEASUREMENTS,
+            ["measurementid"] + COLUMNS_MEASUREMENTS,
+            df_measurements,
+        )
+        upsert_df(
+            conn,
+            TABLE_NAME_STATIONS,
+            COLUMNS_STATIONS,
+            df_stations,
+        )
+
+    print("Data has been successfully loaded into the database.")
+
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME_MEASUREMENTS}")
+        measurements_count = cursor.fetchone()[0]
+        print(f"Total measurements in the database: {measurements_count}")
+
+        cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME_STATIONS}")
+        stations_count = cursor.fetchone()[0]
+        print(f"Total stations in the database: {stations_count}")
