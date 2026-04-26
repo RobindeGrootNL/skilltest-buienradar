@@ -17,6 +17,7 @@ import pandas as pd
 import requests
 
 DB_NAME = "buienradar.db"
+
 # measurementid is generated based on stationid and timestamp, so before that column is created, we use
 # COLUMNS_MEASUREMENTS[1:] to exclude the "measurementid" column
 COLUMNS_MEASUREMENTS = [
@@ -33,6 +34,9 @@ COLUMNS_MEASUREMENTS = [
     "stationid",
 ]
 COLUMNS_STATIONS = ["stationid", "stationname", "lat", "lon", "regio"]
+
+NOW = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
+
 TABLE_NAME_MEASUREMENTS = "MEASUREMENTS"
 TABLE_NAME_STATIONS = "STATIONS"
 
@@ -40,6 +44,14 @@ URL_BASE_BUIENRADAR_API = "https://data.buienradar.nl/2.0/feed/"
 
 
 def init_db(db_name: str, table_name_measurements: str, table_name_stations: str):
+    """Initialise the SQLite database and create the necessary tables if they do not exist yet.
+    Idempotent operation, so if the tables already exist, will be a no-op.
+
+    Args:
+        db_name (str): The name of the SQLite database file.
+        table_name_measurements (str): The name of the measurements table.
+        table_name_stations (str): The name of the stations table.
+    """
     with sqlite3.connect(db_name) as conn:
         cursor = conn.cursor()
 
@@ -79,8 +91,21 @@ def init_db(db_name: str, table_name_measurements: str, table_name_stations: str
         )
 
 
-def add_measurementid_column_to_df(df: pd.DataFrame, type: str = "hash"):
-    if type == "hash":
+def add_measurementid_column_to_df(df: pd.DataFrame, id_type: str = "hash"):
+    """Add a measurementid column to the dataframe based on the stationid and timestamp of each row.
+    This will be used as the primary key for the measurements table in the database.
+
+    Args:
+        df (pd.DataFrame): The dataframe containing the measurements data.
+        id_type (str, optional): The type of ID to generate. Defaults to "hash".
+
+    Raises:
+        ValueError: If an invalid id_type is provided.
+
+    Returns:
+        pd.DataFrame: The dataframe with the added measurementid column.
+    """
+    if id_type == "hash":
         # Create a hash based on the stationid and timestamp of each row to generate a unique measurementid
         # Benefit of using a hash is that it will always generate the same measurementid for the same stationid and timestamp
         # and the join and index performance will be better compared to using a composite key of stationid and timestamp
@@ -94,31 +119,36 @@ def add_measurementid_column_to_df(df: pd.DataFrame, type: str = "hash"):
             ),
             axis=1,
         )
-    elif type == "composite":
-        df["measurementid"] = df.apply(
-            lambda row: f"{row['stationid']}_{row['timestamp']}", axis=1
-        )
-    elif type == "uuid":
-        df["measurementid"] = df.apply(lambda row: uuid.uuid4(), axis=1)
-    else:
-        raise ValueError(
-            "Invalid type. Supported types are 'hash', 'composite', and 'uuid'."
-        )
 
+    # Other options for generating measurementid, just for illustration purposes
+    # Mind that the table definition assumes measurementid to be an integer, so the
+    # table definition would need to be changed to use these other types
+    # elif id_type == "composite":
+    #     df["measurementid"] = df.apply(
+    #         lambda row: f"{row['stationid']}_{row['timestamp']}", axis=1
+    #     )
+    # elif id_type == "uuid":
+    #     df["measurementid"] = df.apply(lambda row: uuid.uuid4(), axis=1)
+    else:
+        raise ValueError("Invalid id_type. Supported id_types are 'hash'")
+
+    # Put the measurementid column as the first column in the dataframe
     df = df[["measurementid"] + [col for col in df.columns if col != "measurementid"]]
     return df
 
 
-def get_buienradar_measurements(
+def get_buienradar_measurements_json(
     base_url: str,
-    return_type: str = "json",
 ):
-    if return_type not in ("json", "xml"):
-        raise ValueError(
-            "Invalid return type. API supported types are 'json' and 'xml'."
-        )
+    """Get the buienradar measurements data in JSON format from the API.
 
-    url = f"{base_url}{return_type}"
+    Args:
+        base_url (str): The base URL of the buienradar API.
+
+    Returns:
+        dict: The JSON response from the API as a dictionary.
+    """
+    url = f"{base_url}json"
 
     response = requests.get(url)
     response.raise_for_status()
@@ -126,21 +156,56 @@ def get_buienradar_measurements(
     return response.json()["actual"]
 
 
-def upsert_df(conn, table, columns, df):
+def upsert_df(
+    connection: sqlite3.Connection, table: str, columns: list, df: pd.DataFrame
+):
+    """Upsert the data from the dataframe into the specified table in the database.
+
+    Args:
+        connection (sqlite3.Connection): The SQLite database connection.
+        table (str): The name of the table to upsert the data into.
+        columns (list): The list of columns to upsert.
+        df (pd.DataFrame): The dataframe containing the data to upsert.
+    """
     cols = ", ".join(columns)
     placeholders = ", ".join("?" * len(columns))
-    conn.executemany(
+    connection.executemany(
         f"INSERT OR IGNORE INTO {table} ({cols}) VALUES ({placeholders})",
         df[columns].values.tolist(),
     )
 
 
+def _test_database_load():
+    """Test function to check if the data has been loaded into the database correctly by querying the counts of the tables."""
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME_MEASUREMENTS}")
+        measurements_count = cursor.fetchone()[0]
+        print(f"Total measurements in the database: {measurements_count}")
+
+        cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME_STATIONS}")
+        stations_count = cursor.fetchone()[0]
+        print(f"Total stations in the database: {stations_count}")
+
+
+# Just for testing purposes
+def _clear_db():
+    """Utility function to clear the data from the database tables. Useful for testing purposes."""
+    with sqlite3.connect(DB_NAME) as conn:
+        cursor = conn.cursor()
+        cursor.execute(f"DROP TABLE {TABLE_NAME_MEASUREMENTS}")
+        cursor.execute(f"DROP TABLE {TABLE_NAME_STATIONS}")
+
+
 if __name__ == "__main__":
+
+    # _clear_db()  # Clear the database before loading new data, for testing purposes. In production, this would not be used to avoid data loss.
+
     # Initialise the database and create the necessary tables, if does not exist yet
     init_db(DB_NAME, TABLE_NAME_MEASUREMENTS, TABLE_NAME_STATIONS)
 
-    buienradar_measurements = get_buienradar_measurements(
-        base_url=URL_BASE_BUIENRADAR_API, return_type="json"
+    buienradar_measurements = get_buienradar_measurements_json(
+        base_url=URL_BASE_BUIENRADAR_API
     )
 
     df_measurements = pd.DataFrame(buienradar_measurements["stationmeasurements"])[
@@ -148,7 +213,7 @@ if __name__ == "__main__":
             1:
         ]  # Exclude measurementid column as it will be generated later based on stationid and timestamp
     ]
-    df_measurements = add_measurementid_column_to_df(df_measurements, type="hash")
+    df_measurements = add_measurementid_column_to_df(df_measurements, id_type="hash")
 
     df_stations = pd.DataFrame(buienradar_measurements["stationmeasurements"])[
         COLUMNS_STATIONS
@@ -156,6 +221,7 @@ if __name__ == "__main__":
 
     with sqlite3.connect(DB_NAME) as conn:
         # Insert stations first to ensure that the foreign key constraint on stationid in measurements table is not violated
+        # Using context manager to ensure that the connection is properly closed after the operations
         upsert_df(
             conn,
             TABLE_NAME_STATIONS,
@@ -169,14 +235,6 @@ if __name__ == "__main__":
             df_measurements,
         )
 
-    print("Data has been successfully loaded into the database.")
+    print(f"Data fetched at {NOW} has been successfully loaded into the database.")
 
-    with sqlite3.connect(DB_NAME) as conn:
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME_MEASUREMENTS}")
-        measurements_count = cursor.fetchone()[0]
-        print(f"Total measurements in the database: {measurements_count}")
-
-        cursor.execute(f"SELECT COUNT(*) FROM {TABLE_NAME_STATIONS}")
-        stations_count = cursor.fetchone()[0]
-        print(f"Total stations in the database: {stations_count}")
+    _test_database_load()
