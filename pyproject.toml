@@ -1,7 +1,7 @@
 [project]
 name = "skilltest-buienradar"
 version = "0.1.0"
-description = "Add your description here"
+description = "This project fetches weather data from the Buienradar API, transforms it, and loads it into a local SQLite database for further analysis. This venv is only needed for jupyter notebooks."
 requires-python = ">=3.10"
 dependencies = [
     "ipykernel~=7.2",
