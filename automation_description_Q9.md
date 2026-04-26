@@ -8,7 +8,11 @@ Currently, the `./load_buienradar_data` script does the following:
 2. Does some basic data transformation to convert the json data into a tabular format ready for the database
 3. Loads the transformed data into a local SQLite database, using an upsert strategy to avoid duplicates
 
-Since having just one days data is not very useful, automating this data load and running it regularly in order
+Since I ran `chmod +x load_buienradar_data` on the script, it can be ran directly
+from the command line using `./load_buienradar_data`, and it will load the most
+recent data available at the moment of running. It relies quite heavily on [uv](https://astral.sh/uv/) to manage dependencies and virtual environments, which makes it very easy to run without having to worry about setting up the environment first.
+
+Since having data from just one snapshot is not very useful, automating this data load and running it regularly in order
 to get the most recent data is a good idea, and historical data can also be built up that way for analysis
 over time.
 
