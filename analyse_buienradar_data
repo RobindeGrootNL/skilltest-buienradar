@@ -9,7 +9,6 @@
 # ///
 
 import sqlite3
-from unittest import result
 
 DB_NAME = "buienradar.db"
 TABLE_NAME_MEASUREMENTS = "MEASUREMENTS"
