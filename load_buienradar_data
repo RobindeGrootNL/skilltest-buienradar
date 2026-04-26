@@ -17,6 +17,8 @@ import pandas as pd
 import requests
 
 DB_NAME = "buienradar.db"
+# measurementid is generated based on stationid and timestamp, so before that column is created, we use
+# COLUMNS_MEASUREMENTS[1:] to exclude the "measurementid" column
 COLUMNS_MEASUREMENTS = [
     "measurementid",
     "timestamp",
@@ -148,17 +150,18 @@ if __name__ == "__main__":
     ]
 
     with sqlite3.connect(DB_NAME) as conn:
-        upsert_df(
-            conn,
-            TABLE_NAME_MEASUREMENTS,
-            ["measurementid"] + COLUMNS_MEASUREMENTS,
-            df_measurements,
-        )
+        # Insert stations first to ensure that the foreign key constraint on stationid in measurements table is not violated
         upsert_df(
             conn,
             TABLE_NAME_STATIONS,
             COLUMNS_STATIONS,
             df_stations,
+        )
+        upsert_df(
+            conn,
+            TABLE_NAME_MEASUREMENTS,
+            COLUMNS_MEASUREMENTS,
+            df_measurements,
         )
 
     print("Data has been successfully loaded into the database.")
