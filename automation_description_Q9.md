@@ -95,3 +95,5 @@ test coverage, especially if there is shared code between different scripts. Thi
 code do not break any of the functionality, and that the data loading process continues to work as expected. It
 even helps LLMs to make contributions as there is clear guardrails for what changes are allowed and what not, and
 it is easier to understand the code with good tests in place as well.
+
+Tests in the database are also a good idea to ensure that data is loaded correctly, and that the data is complete.
