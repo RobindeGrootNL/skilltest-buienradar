@@ -1,0 +1,85 @@
+#!/usr/bin/env -S uv run --no-progress --script --python 3.10
+# -*- mode: python -*-
+
+# /// script
+# requires-python = ">=3.10,<3.11"
+# dependencies = [
+#   "pandas",
+# ]
+# ///
+
+import sqlite3
+from unittest import result
+
+DB_NAME = "buienradar.db"
+TABLE_NAME_MEASUREMENTS = "MEASUREMENTS"
+TABLE_NAME_STATIONS = "STATIONS"
+
+
+def query_db(db_name: str, query: str):
+    with sqlite3.connect(db_name) as conn:
+        cursor = conn.cursor()
+        cursor.execute(query)
+        results = cursor.fetchall()
+    return results
+
+
+if __name__ == "__main__":
+    # Question 5: Which weather station recorded the highest temperature
+    query_5 = """
+        with max_temp AS (
+            SELECT MAX(temperature) AS max_temperature
+            FROM MEASUREMENTS
+        )
+        SELECT s.stationname, mt.max_temperature
+        FROM max_temp mt
+        JOIN MEASUREMENTS m ON m.temperature = mt.max_temperature
+        JOIN STATIONS s ON s.stationid = m.stationid     
+    """
+    result_5 = query_db(DB_NAME, query_5)
+
+    print("The station(s) that recorded the highest temperature:")
+    for station, temp in result_5:
+        print(f"{station} | {temp} °C")
+
+    # Question 6: What is the average temperature?
+    query_6 = """
+        SELECT AVG(temperature) AS avg_temperature
+        FROM MEASUREMENTS
+    """
+
+    result_6 = query_db(DB_NAME, query_6)
+    avg_temperature = result_6[0][0]
+    print(
+        f"The average temperature across all stations and timestamps is: {avg_temperature:.2f} °C"
+    )
+
+    # Question 7: What is the station with the biggest difference between feel temperature and the actual temperature?
+    query_7 = """
+        SELECT s.stationname, MAX(ABS(feeltemperature - temperature)) AS max_diff
+        FROM MEASUREMENTS m
+        JOIN STATIONS s ON s.stationid = m.stationid
+        GROUP BY s.stationname
+        ORDER BY max_diff DESC
+        LIMIT 1
+    """
+
+    result_7 = query_db(DB_NAME, query_7)
+
+    print(
+        "The station with the biggest difference between feel temperature and actual temperature is:"
+    )
+    for station, diff in result_7:
+        print(f"{station} | Δ {diff:.2f} °C")
+
+    # Question 8: Which weather station is located in the North Sea?
+    query_8 = """
+        SELECT stationname
+        FROM STATIONS
+        WHERE regio = 'Noordzee'
+    """
+
+    result_8 = query_db(DB_NAME, query_8)
+
+    print("The weather station(s) located in the North Sea:")
+    print(f"{result_8[0][0]}")
